@@ -1,0 +1,11 @@
+idf_component_register(
+    SRCS
+        "app_main.c"
+        "../drivers/bme680/bme68x.c"
+        "../drivers/bme680/drv_bme680.c"
+        "../tasks/sensor_task.c"
+    INCLUDE_DIRS
+        "."
+        "../drivers/bme680"
+        "../tasks"
+)

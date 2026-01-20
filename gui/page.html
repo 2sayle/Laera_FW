@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monitoring – Temp / Hum / Press / Gas</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#111827;
+      --panel2:#0f172a;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --border:rgba(255,255,255,.08);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+      --ok:#22c55e;
+      --bad:#ef4444;
+      --warn:#f59e0b;
+      --accent:#60a5fa;
+      --grid:rgba(255,255,255,.07);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 20% 0%, rgba(96,165,250,.12), transparent 55%),
+                  radial-gradient(900px 700px at 100% 20%, rgba(34,197,94,.10), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+
+    .wrap{max-width:1200px; margin:0 auto; padding:28px 18px 40px}
+
+    header{
+      display:flex;
+      gap:14px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:18px;
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    h1{font-size:18px; margin:0; letter-spacing:.2px}
+    .subtitle{font-size:13px; color:var(--muted)}
+
+    .right{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .pill{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+    }
+
+    .dot{
+      width:10px; height:10px;
+      border-radius:999px;
+      background: var(--bad);
+      box-shadow: 0 0 0 4px rgba(239,68,68,.15);
+    }
+
+    .dot.on{
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(34,197,94,.15);
+    }
+
+    .pill span{font-size:13px; color:var(--muted)}
+
+    .btn{
+      appearance:none;
+      border:1px solid var(--border);
+      color:var(--text);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      padding:10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:13px;
+      transition: transform .08s ease, border-color .2s ease, background .2s ease;
+    }
+    .btn:active{transform: translateY(1px)}
+    .btn:hover{border-color: rgba(96,165,250,.35)}
+
+    .btn.secondary{font-weight:600; color:var(--muted)}
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap:14px;
+    }
+
+    .card{
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .card .head{
+      padding:14px 14px 10px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0));
+    }
+
+    .metric{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 0;
+    }
+
+    .metric .name{font-size:13px; color:var(--muted)}
+    .metric .value{font-size:22px; font-weight:800; letter-spacing:.2px}
+    .metric .unit{font-size:12px; color:var(--muted); margin-left:6px; font-weight:600}
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      font-weight:700;
+      color:var(--muted);
+      padding:8px 10px;
+      border:1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(0,0,0,.12);
+      white-space:nowrap;
+    }
+
+    .badge .mini{
+      width:8px; height:8px; border-radius:999px;
+      background: var(--warn);
+      box-shadow: 0 0 0 4px rgba(245,158,11,.12);
+    }
+
+    .badge.ok .mini{background:var(--ok); box-shadow:0 0 0 4px rgba(34,197,94,.12)}
+    .badge.bad .mini{background:var(--bad); box-shadow:0 0 0 4px rgba(239,68,68,.12)}
+
+    .canvasWrap{padding:12px 14px 14px}
+
+    canvas{
+      width:100%;
+      height:180px;
+      display:block;
+      border-radius: 14px;
+      background: radial-gradient(800px 220px at 20% 20%, rgba(96,165,250,.06), transparent 60%),
+                  rgba(0,0,0,.12);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+
+    .controls{
+      margin-top:10px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+
+    .scale{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:240px;
+      flex:1;
+    }
+
+    .scale label{font-size:12px; color:var(--muted); font-weight:700}
+
+    input[type="range"]{
+      width:100%;
+      accent-color: var(--accent);
+    }
+
+    .meta{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+
+    .chip{
+      font-size:12px;
+      color:var(--muted);
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.12);
+      white-space:nowrap;
+    }
+
+    .kpi{
+      grid-column: span 12;
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:14px;
+    }
+
+    .kpi .miniCard{
+      border:1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding:14px;
+    }
+
+    .miniTop{display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .miniTop .label{font-size:12px; color:var(--muted); font-weight:800; letter-spacing:.4px; text-transform:uppercase}
+    .miniTop .state{font-size:12px; color:var(--muted)}
+
+    .miniVal{margin-top:10px; font-size:28px; font-weight:900; letter-spacing:.3px}
+    .miniVal small{font-size:12px; color:var(--muted); margin-left:6px; font-weight:700}
+
+    .charts{
+      grid-column: span 12;
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap:14px;
+    }
+
+    @media (max-width: 920px){
+      .kpi{grid-template-columns: repeat(2, 1fr)}
+      .charts{grid-template-columns: 1fr}
+    }
+
+    @media (max-width: 520px){
+      header{flex-direction:column; align-items:flex-start}
+      .right{justify-content:flex-start}
+      .kpi{grid-template-columns: 1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Laera — Air Quality Monitor</h1>
+        <div class="subtitle">Temperature · Humidity · Pressure · Gas — real-time display (mock)</div>
+      </div>
+
+      <div class="right">
+        <div class="pill" title="Device status">
+          <div id="deviceDot" class="dot"></div>
+          <span id="deviceText">Device: OFFLINE</span>
+        </div>
+        <button id="toggleBtn" class="btn">Activate</button>
+        <button id="pauseBtn" class="btn secondary">Pause</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- KPI row -->
+      <section class="kpi">
+        <div class="miniCard">
+          <div class="miniTop">
+            <div class="label">Temperature</div>
+            <div id="st-temp" class="state">—</div>
+          </div>
+          <div class="miniVal"><span id="kpi-temp">--</span><small>°C</small></div>
+        </div>
+
+        <div class="miniCard">
+          <div class="miniTop">
+            <div class="label">Humidity</div>
+            <div id="st-hum" class="state">—</div>
+          </div>
+          <div class="miniVal"><span id="kpi-hum">--</span><small>%</small></div>
+        </div>
+
+        <div class="miniCard">
+          <div class="miniTop">
+            <div class="label">Pressure</div>
+            <div id="st-pres" class="state">—</div>
+          </div>
+          <div class="miniVal"><span id="kpi-pres">----</span><small>hPa</small></div>
+        </div>
+
+        <div class="miniCard">
+          <div class="miniTop">
+            <div class="label">Gas</div>
+            <div id="st-gas" class="state">—</div>
+          </div>
+          <div class="miniVal"><span id="kpi-gas">----</span><small>Ω</small></div>
+        </div>
+      </section>
+
+      <!-- Charts -->
+      <section class="charts">
+        <article class="card" data-series="temp">
+          <div class="head">
+            <div class="metric">
+              <div class="name">Temperature</div>
+              <div class="value"><span id="val-temp">--</span><span class="unit">°C</span></div>
+            </div>
+            <div id="badge-temp" class="badge"><span class="mini"></span><span>Stability</span></div>
+          </div>
+          <div class="canvasWrap">
+            <canvas id="cv-temp" width="900" height="260"></canvas>
+            <div class="controls">
+              <div class="scale">
+                <label for="rng-temp">Scale</label>
+                <input id="rng-temp" type="range" min="0" max="3" step="1" value="1" />
+              </div>
+              <div class="meta">
+                <div id="lbl-temp" class="chip">Window: 10 min</div>
+                <div class="chip">1 pt / 2 s</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card" data-series="hum">
+          <div class="head">
+            <div class="metric">
+              <div class="name">Humidity</div>
+              <div class="value"><span id="val-hum">--</span><span class="unit">%</span></div>
+            </div>
+            <div id="badge-hum" class="badge"><span class="mini"></span><span>Stability</span></div>
+          </div>
+          <div class="canvasWrap">
+            <canvas id="cv-hum" width="900" height="260"></canvas>
+            <div class="controls">
+              <div class="scale">
+                <label for="rng-hum">Scale</label>
+                <input id="rng-hum" type="range" min="0" max="3" step="1" value="1" />
+              </div>
+              <div class="meta">
+                <div id="lbl-hum" class="chip">Window: 10 min</div>
+                <div class="chip">1 pt / 2 s</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card" data-series="pres">
+          <div class="head">
+            <div class="metric">
+              <div class="name">Pressure</div>
+              <div class="value"><span id="val-pres">----</span><span class="unit">hPa</span></div>
+            </div>
+            <div id="badge-pres" class="badge"><span class="mini"></span><span>Stability</span></div>
+          </div>
+          <div class="canvasWrap">
+            <canvas id="cv-pres" width="900" height="260"></canvas>
+            <div class="controls">
+              <div class="scale">
+                <label for="rng-pres">Scale</label>
+                <input id="rng-pres" type="range" min="0" max="3" step="1" value="1" />
+              </div>
+              <div class="meta">
+                <div id="lbl-pres" class="chip">Window: 10 min</div>
+                <div class="chip">1 pt / 2 s</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card" data-series="gas">
+          <div class="head">
+            <div class="metric">
+              <div class="name">Gas</div>
+              <div class="value"><span id="val-gas">----</span><span class="unit">Ω</span></div>
+            </div>
+            <div id="badge-gas" class="badge"><span class="mini"></span><span>Stability</span></div>
+          </div>
+          <div class="canvasWrap">
+            <canvas id="cv-gas" width="900" height="260"></canvas>
+            <div class="controls">
+              <div class="scale">
+                <label for="rng-gas">Scale</label>
+                <input id="rng-gas" type="range" min="0" max="3" step="1" value="1" />
+              </div>
+              <div class="meta">
+                <div id="lbl-gas" class="chip">Window: 10 min</div>
+                <div class="chip">1 pt / 2 s</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Minimal, modern GUI with no dependencies.
+     * - 4 series (temp/hum/pres/gas)
+     * - 4 canvas charts
+     * - slider per card: changes the displayed time window
+     * - device status toggle (on/off) + pause
+     *
+     * Replace the "mock" generation with your data (WebSocket, SSE, REST, etc.).
+     */
+
+    // --------- Config ---------
+    const WINDOWS = [
+      { label: '1 min',  seconds: 60 },
+      { label: '10 min', seconds: 600 },
+      { label: '1 h',    seconds: 3600 },
+      { label: '24 h',   seconds: 86400 },
+    ];
+
+    // Mock sampling period (s)
+    const SAMPLE_DT = 2;
+
+    // Max points stored per series (24h @ 2s -> 43200 pts)
+    const MAX_POINTS = 45000;
+
+    // Series with units + reasonable bounds
+    const SERIES = {
+      temp: { name: 'Temperature', unit: '°C',  min: -10, max:  50, decimals: 1 },
+      hum:  { name: 'Humidity',    unit: '%',   min:   0, max: 100, decimals: 0 },
+      pres: { name: 'Pressure',    unit: 'hPa', min: 900, max:1100, decimals: 0 },
+      gas:  { name: 'Gas',         unit: 'Ω',   min:  100, max:50000, decimals: 0 },
+    };
+
+    // --------- State ---------
+    let deviceOnline = false;
+    let paused = false;
+
+    // In-memory storage: [{t: epoch_ms, v: number}, ...]
+    const data = {
+      temp: [],
+      hum:  [],
+      pres: [],
+      gas:  [],
+    };
+
+    // Window selection per card
+    const windowIndex = { temp: 1, hum: 1, pres: 1, gas: 1 };
+
+    // --------- DOM helpers ---------
+    const $ = (sel) => document.querySelector(sel);
+
+    const el = {
+      dot: $('#deviceDot'),
+      dtext: $('#deviceText'),
+      toggle: $('#toggleBtn'),
+      pause: $('#pauseBtn'),
+      kpi: {
+        temp: $('#kpi-temp'), hum: $('#kpi-hum'), pres: $('#kpi-pres'), gas: $('#kpi-gas'),
+      },
+      val: {
+        temp: $('#val-temp'), hum: $('#val-hum'), pres: $('#val-pres'), gas: $('#val-gas'),
+      },
+      badge: {
+        temp: $('#badge-temp'), hum: $('#badge-hum'), pres: $('#badge-pres'), gas: $('#badge-gas'),
+      },
+      st: {
+        temp: $('#st-temp'), hum: $('#st-hum'), pres: $('#st-pres'), gas: $('#st-gas'),
+      },
+      cv: {
+        temp: $('#cv-temp'), hum: $('#cv-hum'), pres: $('#cv-pres'), gas: $('#cv-gas'),
+      },
+      rng: {
+        temp: $('#rng-temp'), hum: $('#rng-hum'), pres: $('#rng-pres'), gas: $('#rng-gas'),
+      },
+      lbl: {
+        temp: $('#lbl-temp'), hum: $('#lbl-hum'), pres: $('#lbl-pres'), gas: $('#lbl-gas'),
+      }
+    };
+
+    // --------- Rendering ---------
+    function setDeviceUI(){
+      el.dot.classList.toggle('on', deviceOnline);
+      el.dtext.textContent = `Device: ${deviceOnline ? 'ONLINE' : 'OFFLINE'}`;
+      el.toggle.textContent = deviceOnline ? 'Deactivate' : 'Activate';
+      el.pause.disabled = !deviceOnline;
+      el.pause.style.opacity = deviceOnline ? '1' : '.45';
+    }
+
+    function fmt(seriesKey, v){
+      const d = SERIES[seriesKey].decimals;
+      return (v == null || Number.isNaN(v)) ? '--' : v.toFixed(d);
+    }
+
+    function lastValue(seriesKey){
+      const arr = data[seriesKey];
+      return arr.length ? arr[arr.length - 1].v : null;
+    }
+
+      // Simple stability heuristic based on last N points variance
+      function updateStability(seriesKey){
+      const arr = data[seriesKey];
+      const badge = el.badge[seriesKey];
+      const st = el.st[seriesKey];
+
+      badge.classList.remove('ok','bad');
+
+      if(arr.length < 12){
+        badge.classList.add('bad');
+        st.textContent = 'insufficient data';
+        return;
+      }
+
+      const N = 30;
+      const slice = arr.slice(-N);
+      const mean = slice.reduce((s,p)=>s+p.v,0) / slice.length;
+      const varr = slice.reduce((s,p)=>s+Math.pow(p.v-mean,2),0) / slice.length;
+      const std = Math.sqrt(varr);
+
+      // Pragmatic thresholds (adjust as needed)
+      let state = 'ok';
+      let label = 'stable';
+
+      if(seriesKey === 'temp' && std > 0.8) { state='bad'; label='unstable'; }
+      if(seriesKey === 'hum'  && std > 2.5) { state='bad'; label='unstable'; }
+      if(seriesKey === 'pres' && std > 1.8) { state='bad'; label='unstable'; }
+      if(seriesKey === 'gas'  && std > 1200){ state='bad'; label='unstable'; }
+
+      badge.classList.add(state);
+      st.textContent = `${label} (σ≈${std.toFixed(2)})`;
+    }
+
+    function drawChart(seriesKey){
+      const canvas = el.cv[seriesKey];
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+
+      // Clear
+      ctx.clearRect(0,0,W,H);
+
+      // Determine window
+      const wi = windowIndex[seriesKey];
+      const win = WINDOWS[wi].seconds * 1000;
+      const now = Date.now();
+      const t0 = now - win;
+
+      const arr = data[seriesKey];
+      const pts = arr.filter(p => p.t >= t0);
+
+      // Background grid
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid');
+
+      const gx = 6;
+      const gy = 4;
+      for(let i=1;i<gx;i++){
+        const x = (W/gx)*i;
+        ctx.beginPath();
+        ctx.moveTo(x, 10);
+        ctx.lineTo(x, H-26);
+        ctx.stroke();
+      }
+      for(let j=1;j<gy;j++){
+        const y = 10 + ((H-36)/gy)*j;
+        ctx.beginPath();
+        ctx.moveTo(10, y);
+        ctx.lineTo(W-10, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // If no points
+      if(pts.length < 2){
+        // Baseline label
+        ctx.fillStyle = 'rgba(229,231,235,.6)';
+        ctx.font = '600 14px ui-sans-serif, system-ui';
+        ctx.fillText('No data (device OFFLINE or window too short)', 16, 34);
+        return;
+      }
+
+      // Dynamic Y range with padding
+      let ymin = Infinity, ymax = -Infinity;
+      for(const p of pts){
+        ymin = Math.min(ymin, p.v);
+        ymax = Math.max(ymax, p.v);
+      }
+      if(ymin === ymax){
+        ymin -= 1;
+        ymax += 1;
+      }
+      const pad = (ymax - ymin) * 0.12;
+      ymin -= pad; ymax += pad;
+
+      const xOf = (t) => {
+        const x = 10 + ((t - t0) / win) * (W - 20);
+        return Math.max(10, Math.min(W-10, x));
+      };
+      const yOf = (v) => {
+        const y = 10 + (1 - (v - ymin) / (ymax - ymin)) * (H - 36);
+        return Math.max(10, Math.min(H-26, y));
+      };
+
+      // Line
+      ctx.save();
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = 'rgba(96,165,250,.95)';
+      ctx.beginPath();
+      ctx.moveTo(xOf(pts[0].t), yOf(pts[0].v));
+      for(let i=1;i<pts.length;i++){
+        ctx.lineTo(xOf(pts[i].t), yOf(pts[i].v));
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // Last point marker
+      const last = pts[pts.length - 1];
+      const lx = xOf(last.t);
+      const ly = yOf(last.v);
+      ctx.save();
+      ctx.fillStyle = 'rgba(96,165,250,1)';
+      ctx.beginPath();
+      ctx.arc(lx, ly, 3.6, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // Axis labels
+      ctx.save();
+      ctx.fillStyle = 'rgba(229,231,235,.65)';
+      ctx.font = '700 12px ui-sans-serif, system-ui';
+      ctx.fillText(`${ymax.toFixed(2)} ${SERIES[seriesKey].unit}`, 12, 22);
+      ctx.fillText(`${ymin.toFixed(2)} ${SERIES[seriesKey].unit}`, 12, H-30);
+
+      // Time window label
+      ctx.textAlign = 'right';
+      ctx.fillText(`-${WINDOWS[wi].label}`, W-12, H-12);
+      ctx.restore();
+    }
+
+    function renderAll(){
+      // Update KPI
+      for(const k of Object.keys(SERIES)){
+        const v = lastValue(k);
+        const s = fmt(k, v);
+        el.kpi[k].textContent = s;
+        el.val[k].textContent = s;
+        updateStability(k);
+        drawChart(k);
+      }
+    }
+
+    // --------- Data feed (mock) ---------
+    // Smoothed random walk per series
+    const mockState = {
+      temp: 22.0,
+      hum:  45.0,
+      pres: 1013.0,
+      gas:  12000.0,
+    };
+
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    function stepMock(){
+      if(!deviceOnline || paused) return;
+
+      // Small random drift per sample
+      mockState.temp += (Math.random()-0.5)*0.25;
+      mockState.hum  += (Math.random()-0.5)*1.2;
+      mockState.pres += (Math.random()-0.5)*0.35;
+      mockState.gas  += (Math.random()-0.5)*250;
+
+      // Slow trends
+      mockState.temp += Math.sin(Date.now()/120000) * 0.01;
+      mockState.hum  += Math.cos(Date.now()/180000) * 0.015;
+
+      // Clamp
+      mockState.temp = clamp(mockState.temp, SERIES.temp.min, SERIES.temp.max);
+      mockState.hum  = clamp(mockState.hum,  SERIES.hum.min,  SERIES.hum.max);
+      mockState.pres = clamp(mockState.pres, SERIES.pres.min, SERIES.pres.max);
+      mockState.gas  = clamp(mockState.gas,  SERIES.gas.min,  SERIES.gas.max);
+
+      const t = Date.now();
+      for(const k of Object.keys(SERIES)){
+        data[k].push({ t, v: mockState[k] });
+        if(data[k].length > MAX_POINTS) data[k].splice(0, data[k].length - MAX_POINTS);
+      }
+
+      renderAll();
+    }
+
+    // --------- Controls wiring ---------
+    function wireSlider(seriesKey){
+      const rng = el.rng[seriesKey];
+      const lbl = el.lbl[seriesKey];
+      rng.value = String(windowIndex[seriesKey]);
+      lbl.textContent = `Window: ${WINDOWS[windowIndex[seriesKey]].label}`;
+
+      rng.addEventListener('input', () => {
+        const idx = Number(rng.value);
+        windowIndex[seriesKey] = idx;
+        lbl.textContent = `Window: ${WINDOWS[idx].label}`;
+        drawChart(seriesKey);
+      });
+    }
+
+    function wireAll(){
+      el.toggle.addEventListener('click', () => {
+        deviceOnline = !deviceOnline;
+        if(!deviceOnline) paused = false;
+        setDeviceUI();
+        renderAll();
+      });
+
+      el.pause.addEventListener('click', () => {
+        if(!deviceOnline) return;
+        paused = !paused;
+        el.pause.textContent = paused ? 'Resume' : 'Pause';
+      });
+
+      for(const k of Object.keys(SERIES)) wireSlider(k);
+    }
+
+    // --------- Boot ---------
+    setDeviceUI();
+    wireAll();
+    renderAll();
+
+    // tick
+    setInterval(stepMock, SAMPLE_DT * 1000);
+
+    // --------- Integration hint ---------
+    // Example: if you receive data from a device:
+    // function pushSample({temp, hum, pres, gas, t_ms}){
+    //   const t = t_ms ?? Date.now();
+    //   data.temp.push({t, v: temp}); ...
+    //   renderAll();
+    // }
+  </script>
+</body>
+</html>

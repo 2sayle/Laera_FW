@@ -1,13 +1,17 @@
 /**
- * @file sensor_task.c
- * @author Elyass Jaoudat (ejaoudat@outlook.fr)
- * @brief Task for reading data from the BME68x sensor and publishing it to a queue.
- * @version 0.1
- * @date 2026-02-11
- * 
- * @license MIT
- */
+  ******************************************************************************
+  * @file    sensor_task.c
+  * @brief   BME68x sensor task implementation.
+  ******************************************************************************
+  * @attention
+  *
+  * This module configures the BME68x sensor in forced mode, periodically reads
+  * measurements, and publishes samples to a FreeRTOS queue.
+  *
+  ******************************************************************************
+  */
 
+/* Private includes ----------------------------------------------------------*/
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -17,11 +21,18 @@
 #include "sensor_task.h"
 #include "esp_log.h"
 
+/* External variables --------------------------------------------------------*/
 extern struct bme68x_dev bme;
 
+/* Private variables ---------------------------------------------------------*/
 static const char TAG[] = "SENSOR_TASK";
 
-
+/* Exported functions --------------------------------------------------------*/
+/**
+  * @brief  FreeRTOS task entry point for periodic sensor acquisition.
+  * @param  arg Pointer to output queue handle used for sample publication.
+  * @retval None
+  */
 void sensor_task(void *arg) {
     struct bme68x_conf conf = {
         .os_hum = BME68X_OS_2X,

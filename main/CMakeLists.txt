@@ -1,13 +1,11 @@
 idf_component_register(
     SRCS
         "app_main.c"
-        "../drivers/wifi_sta/wifi_handler.c"
         "../drivers/bme680/bme68x.c"
         "../drivers/bme680/drv_bme680.c"
         "../tasks/sensor_task.c"
-    INCLUDE_DIRS
+        "../tasks/wifi_task.c"
         "."
-        "../drivers/wifi_sta"
         "../drivers/bme680"
         "../tasks"
 )

@@ -1,9 +1,20 @@
-//
-// Created by Elyass Jaoudat on 26/01/2026.
-//
+/**
+  ******************************************************************************
+  * @file    wifi_task.c
+  * @brief   Wi-Fi station task implementation.
+  * @author  Elyass Jaoudat (ejaoudat@outlook.fr)
+  ******************************************************************************
+  * @attention
+  *
+  * This module initializes the Wi-Fi stack in station mode, performs a blocking
+  * connection attempt, and notifies dependent tasks when the link is available.
+  *
+  ******************************************************************************
+  */
 
 #include "wifi_handler.h"
 
+/* Private includes ----------------------------------------------------------*/
 #include <macros.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -17,7 +28,9 @@
 #include "esp_netif.h"
 #include "nvs_flash.h"
 
+/* Private define ------------------------------------------------------------*/
 /* ------ Test Config (better using menuconfig) ------ */
+/* TODO */
 #ifndef CONFIG_WIFI_SSID
 #define CONFIG_WIFI_SSID "WIFI_SSID_REDACTED"
 #endif
@@ -26,16 +39,23 @@
 #define CONFIG_WIFI_PASS "WIFI_PASS_REDACTED"
 #endif
 
+/* Exported variables --------------------------------------------------------*/
 EventGroupHandle_t g_wifi_event_group;
 
+/* Private variables ---------------------------------------------------------*/
 static int sRetryNum = 0;
 static const int WIFI_MAX_RETRY = 10;
 
 static char* TAG = "WIFI HANDLER";
 
 /**
- * @brief Event Handler : Wi-Fi + IP
- */
+  * @brief  Handles Wi-Fi and IP events.
+  * @param  arg User context pointer (unused).
+  * @param  event_base Event base identifying the producer.
+  * @param  event_id Event identifier within the base.
+  * @param  event_data Pointer to event-specific data.
+  * @retval None
+  */
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
 
     UNUSED(arg); UNUSED(event_data);
@@ -62,6 +82,14 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     }
 }
 
+/**
+  * @brief  Initializes STA mode and waits for connection result.
+  * @param  None
+  * @retval ESP_OK           Connected and IP obtained.
+  * @retval ESP_FAIL         Connection failed after retries.
+  * @retval ESP_ERR_NO_MEM   Event group allocation failed.
+  * @retval ESP_ERR_TIMEOUT  Connection timed out.
+  */
 static esp_err_t wifi_connect_sta_blocking(void) {
     g_wifi_event_group = xEventGroupCreate();
     if (!g_wifi_event_group)
@@ -105,7 +133,11 @@ static esp_err_t wifi_connect_sta_blocking(void) {
 
 }
 
-
+/**
+  * @brief  FreeRTOS task entry point for Wi-Fi initialization and connection.
+  * @param  arg Task argument (unused).
+  * @retval None
+  */
 void wifi_task(void *arg) {
 
     UNUSED(arg);

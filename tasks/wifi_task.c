@@ -26,9 +26,7 @@
 #define CONFIG_WIFI_PASS "WIFI_PASS_REDACTED"
 #endif
 
-static EventGroupHandle_t s_wifi_event_group;
-#define WIFI_CONNECTED_BIT  BIT0
-#define WIFI_FAIL_BIT       BIT1
+EventGroupHandle_t g_wifi_event_group;
 
 static int sRetryNum = 0;
 static const int WIFI_MAX_RETRY = 10;
@@ -53,20 +51,20 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             esp_wifi_connect();
         } else {
             ESP_LOGI(TAG, "WIFI STA DISCONNECTED --> Exiting...");
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+            xEventGroupSetBits(g_wifi_event_group, WIFI_FAIL_BIT);
         }
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         sRetryNum = 0;
         ESP_LOGI(TAG, "IP_EVENT_STA_GOT_IP: " IPSTR, IP2STR(&event->ip_info.ip));
-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        xEventGroupSetBits(g_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
 
 static esp_err_t wifi_connect_sta_blocking(void) {
-    s_wifi_event_group = xEventGroupCreate();
-    if (!s_wifi_event_group)
+    g_wifi_event_group = xEventGroupCreate();
+    if (!g_wifi_event_group)
         return ESP_ERR_NO_MEM;
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -94,7 +92,7 @@ static esp_err_t wifi_connect_sta_blocking(void) {
     ESP_ERROR_CHECK(esp_wifi_start());
 
     /* Wait for connection */
-    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+    EventBits_t bits = xEventGroupWaitBits(g_wifi_event_group,
         WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
         pdFALSE,
         pdFALSE,
@@ -127,6 +125,7 @@ void wifi_task(void *arg) {
     }
 
     ESP_LOGI(TAG, "WIFI STA CONNECTED");
+    xTaskNotifyGiveIndexed(http_server_task, 0)
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));

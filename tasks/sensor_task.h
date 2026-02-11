@@ -1,6 +1,11 @@
-//
-// Created by Elyass Jaoudat on 08/01/2026.
-//
+/**
+ * @file sensor_task.h
+ * @author Elyass Jaoudat (ejaoudat@outlook.fr)
+ * @brief Header file for the sensor task, which reads data from the BME68x sensor and publishes it to a queue.
+ * @version 0.1
+ * @date 2026-02-11
+ *
+ */
 
 #ifndef LAERA_FW_SENSOR_TASK_H
 #define LAERA_FW_SENSOR_TASK_H
@@ -26,6 +31,6 @@ typedef struct {
 /* ----------------------------- Function prototypes ---------------------------------- */
 
 void sensor_task(void *arg);
-
+void publisher_task(void *arg);
 
 #endif //LAERA_FW_SENSOR_TASK_H

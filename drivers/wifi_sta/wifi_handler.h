@@ -5,4 +5,7 @@
 #ifndef LAERA_FW_WIFI_HANDLER_H
 #define LAERA_FW_WIFI_HANDLER_H
 
+void wifi_task(void *arg);
+
+
 #endif //LAERA_FW_WIFI_HANDLER_H

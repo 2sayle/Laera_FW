@@ -10,20 +10,30 @@
 #include "bme68x_defs.h"
 #include "drv_bme680.h"
 #include "sensor_task.h"
+#include "wifi_handler.h"
 
 #define DEBUG 1
+#define QUEUE_LENGTH 10
 
 /* Global variables ------------------------------------------------------------------------------------------- */
+
+/* I2C bus */
 struct bme68x_dev bme = {0};
 static struct bme68x_i2c_ctx i2c_ctx = {0};
 static i2c_master_bus_handle_t i2cMasterBus = NULL;
 const uint8_t bme_addr = BME680_I2C_ADDR_1;
 
-static const char TAG[] = "APP MAIN";
+/* Sensor */
+QueueHandle_t MetricsQueue;
+sensor_task_ctx_t SensorTaskCtx = {
+    .data_queue = NULL,
+    .task_handle = NULL,
+    .config_mutex = NULL,
+    .stop_requested = false,
+};
 
-/* Queues */
-static const uint8_t QueueLength = 8;
-QueueHandle_t MainQueue = NULL;
+/* Tag */
+static const char TAG[] = "APP MAIN";
 
 /* Static functions ------------------------------------------------------------------------------------------- */
 static void log_hex(const char *label, const uint8_t *data, size_t len) {
@@ -41,50 +51,39 @@ static void log_hex(const char *label, const uint8_t *data, size_t len) {
     }
 }
 
-
 /*
  * Application main entry point
  */
  
 void app_main(void) {
-#ifdef DEBUG
-    ESP_LOGW("BOOT", "Reset reason: %d", esp_reset_reason());
-#endif
 
-    esp_err_t err = bm68x_i2c_init_itf(&bme, &i2c_ctx);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "I2C Bus initialization failed\n");
-        return;
-    }
-
-    int8_t rslt = bme68x_init(&bme);
-    if (rslt != BME68X_OK) {
-        ESP_LOGE(TAG, "BME68X initialization failed\n");
-        return;
-    }
-    ESP_LOGI(TAG, "BME68X initialization successful\n");
-
-    rslt = bme68x_selftest_check(&bme);
-    if (rslt != BME68X_OK) {
-        ESP_LOGE(TAG, "Self-test failed\n");
-    }
-    ESP_LOGI(TAG, "Self-test OK");
+    /* Initialize I2C bus, sensor and perform a quick self-test */
+    if (bme68x_startup(&bme, &i2c_ctx) != ESP_OK) return;
 
     /* Create the main queue */
-    MainQueue = xQueueCreate(QueueLength, sizeof(sensor_data_t));
-    if (MainQueue == NULL) {
+    MetricsQueue = xQueueCreate(QUEUE_LENGTH, sizeof(sensor_data_t));
+    if (MetricsQueue == NULL) {
         ESP_LOGE(TAG, "Failed to create MainQueue");
         return;
     }
 
     /* Create sensor task */
-    xTaskCreate
-        (sensor_task,   // Task function
+    xTaskCreate(sensor_task,   // Task function
         "sensor_task",  // Task name
-        4096,           // Stack size
-        NULL,           // Task parameters
-        5,              // Task priority
+        2048,           // Stack size
+        MetricsQueue,   // Task parameters
+        2,              // Task priority
         NULL);          // Task handle
+
+    xTaskCreatePinnedToCore(wifi_task,
+        "wifi_task",
+        4096,
+        MetricsQueue,
+        5,
+        NULL,
+        0); // Core 0
+
+
 
     ESP_LOGI(TAG, "Application started");
 

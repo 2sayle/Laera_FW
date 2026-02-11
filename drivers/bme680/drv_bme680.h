@@ -40,5 +40,6 @@ struct bme68x_i2c_ctx {
 
 /* ----------------- Public Functions ----------------- */
 esp_err_t bm68x_i2c_init_itf(struct bme68x_dev *handle, struct bme68x_i2c_ctx *ctx);
+esp_err_t bme68x_startup(struct bme68x_dev *dev,  struct bme68x_i2c_ctx *ctx);
 
 #endif //LAERA_FW_DRV_BME680_H

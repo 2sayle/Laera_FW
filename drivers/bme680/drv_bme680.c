@@ -193,3 +193,32 @@ void bme68x_check_rslt(const char api_name[], int8_t rslt)
         break;
     }
 }
+
+
+esp_err_t bme68x_startup(struct bme68x_dev *dev,  struct bme68x_i2c_ctx *ctx) {
+#ifdef DEBUG
+    ESP_LOGW("BOOT", "Reset reason: %d", esp_reset_reason());
+#endif
+
+    esp_err_t err = bm68x_i2c_init_itf(dev, ctx);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "I2C Bus initialization failed\n");
+        return err;
+    }
+
+    int8_t rslt = bme68x_init(dev);
+    if (rslt != BME68X_OK) {
+        ESP_LOGE(TAG, "BME68X initialization failed\n");
+        return err;
+    }
+    ESP_LOGI(TAG, "BME68X initialization successful\n");
+
+    rslt = bme68x_selftest_check(dev);
+    if (rslt != BME68X_OK) {
+        ESP_LOGE(TAG, "Self-test failed\n");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "Self-test OK");
+    return ESP_OK;
+}

@@ -1,6 +1,12 @@
-//
-// Created by Elyass Jaoudat on 08/01/2026.
-//
+/**
+ * @file sensor_task.c
+ * @author Elyass Jaoudat (ejaoudat@outlook.fr)
+ * @brief Task for reading data from the BME68x sensor and publishing it to a queue.
+ * @version 0.1
+ * @date 2026-02-11
+ * 
+ * @license MIT
+ */
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -14,6 +20,7 @@
 extern struct bme68x_dev bme;
 
 static const char TAG[] = "SENSOR_TASK";
+
 
 void sensor_task(void *arg) {
     struct bme68x_conf conf = {
@@ -67,10 +74,11 @@ void sensor_task(void *arg) {
 
             /* Log the sensor data */
             ESP_LOGI(TAG, "Temperature: %.2f, Pressure: %.2f, Humidity: %.2f, Gas Resistance: %.2f",
-                     sample.temperature, sample.pressure, sample.humidity, sample.gas_resistance);
+                      sample.temperature, sample.pressure, sample.humidity, sample.gas_resistance);
 
-            /* Send the data to the queue
-            xQueueSend(arg, &sample, portMAX_DELAY);*/
+            /* Send the data to the queue */
+            xQueueSend(arg, &sample, portMAX_DELAY);
+
         } else if (rslt == BME68X_W_NO_NEW_DATA || nData == 0) {
             ESP_LOGD(TAG, "No new data available");
         } else {

@@ -88,7 +88,7 @@ void app_main(void) {
     xTaskCreatePinnedToCore(server_task,
         "server_task",
         4096,
-        NULL,
+        MetricsQueue,
         5,
         NULL,
         0); // Core 0

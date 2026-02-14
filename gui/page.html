@@ -257,7 +257,7 @@
     <header>
       <div class="title">
         <h1>Laera — Air Quality Monitor</h1>
-        <div class="subtitle">Temperature · Humidity · Pressure · Gas — real-time display (mock)</div>
+        <div class="subtitle">Temperature · Humidity · Pressure · Gas — live device telemetry</div>
       </div>
 
       <div class="right">
@@ -265,7 +265,7 @@
           <div id="deviceDot" class="dot"></div>
           <span id="deviceText">Device: OFFLINE</span>
         </div>
-        <button id="toggleBtn" class="btn">Activate</button>
+        <button id="toggleBtn" class="btn">Refresh</button>
         <button id="pauseBtn" class="btn secondary">Pause</button>
       </div>
     </header>
@@ -409,9 +409,7 @@
      * - 4 series (temp/hum/pres/gas)
      * - 4 canvas charts
      * - slider per card: changes the displayed time window
-     * - device status toggle (on/off) + pause
-     *
-     * Replace the "mock" generation with your data (WebSocket, SSE, REST, etc.).
+     * - live telemetry from GET /api/sensor
      */
 
     // --------- Config ---------
@@ -421,9 +419,10 @@
       { label: '1 h',    seconds: 3600 },
       { label: '24 h',   seconds: 86400 },
     ];
+    const DEFAULT_WINDOW_INDEX = 1;
 
-    // Mock sampling period (s)
-    const SAMPLE_DT = 2;
+    // Polling period (ms)
+    const POLL_MS = 2000;
 
     // Max points stored per series (24h @ 2s -> 43200 pts)
     const MAX_POINTS = 45000;
@@ -439,6 +438,7 @@
     // --------- State ---------
     let deviceOnline = false;
     let paused = false;
+    let liveTimestampOffsetMs = null;
 
     // In-memory storage: [{t: epoch_ms, v: number}, ...]
     const data = {
@@ -449,7 +449,7 @@
     };
 
     // Window selection per card
-    const windowIndex = { temp: 1, hum: 1, pres: 1, gas: 1 };
+    const windowIndex = { temp: DEFAULT_WINDOW_INDEX, hum: DEFAULT_WINDOW_INDEX, pres: DEFAULT_WINDOW_INDEX, gas: DEFAULT_WINDOW_INDEX };
 
     // --------- DOM helpers ---------
     const $ = (sel) => document.querySelector(sel);
@@ -486,7 +486,7 @@
     function setDeviceUI(){
       el.dot.classList.toggle('on', deviceOnline);
       el.dtext.textContent = `Device: ${deviceOnline ? 'ONLINE' : 'OFFLINE'}`;
-      el.toggle.textContent = deviceOnline ? 'Deactivate' : 'Activate';
+      el.toggle.textContent = 'Refresh';
       el.pause.disabled = !deviceOnline;
       el.pause.style.opacity = deviceOnline ? '1' : '.45';
     }
@@ -577,11 +577,34 @@
       ctx.restore();
 
       // If no points
-      if(pts.length < 2){
+      if(pts.length === 0){
         // Baseline label
         ctx.fillStyle = 'rgba(229,231,235,.6)';
         ctx.font = '600 14px ui-sans-serif, system-ui';
         ctx.fillText('No data (device OFFLINE or window too short)', 16, 34);
+        return;
+      }
+
+      // If only one point, still show it so the UI doesn't look empty
+      if(pts.length === 1){
+        const only = pts[0];
+        const y = H / 2;
+        const x = Math.max(16, Math.min(W - 16, 10 + ((only.t - t0) / win) * (W - 20)));
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(96,165,250,1)';
+        ctx.beginPath();
+        ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(229,231,235,.65)';
+        ctx.font = '700 12px ui-sans-serif, system-ui';
+        ctx.fillText(`${only.v.toFixed(2)} ${SERIES[seriesKey].unit}`, 12, 22);
+        ctx.textAlign = 'right';
+        ctx.fillText(`-${WINDOWS[wi].label}`, W-12, H-12);
+        ctx.restore();
         return;
       }
 
@@ -655,43 +678,126 @@
       }
     }
 
-    // --------- Data feed (mock) ---------
-    // Smoothed random walk per series
-    const mockState = {
-      temp: 22.0,
-      hum:  45.0,
-      pres: 1013.0,
-      gas:  12000.0,
-    };
+    function mapLiveTimestamp(rawTimestamp){
+      const raw = Number(rawTimestamp);
+      if(!Number.isFinite(raw)) return Date.now();
 
-    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+      // Epoch timestamp (ms)
+      if(raw > 946684800000) return raw;
 
-    function stepMock(){
-      if(!deviceOnline || paused) return;
+      // Uptime timestamp (ms from boot), re-anchored to browser time
+      if(liveTimestampOffsetMs == null){
+        liveTimestampOffsetMs = Date.now() - raw;
+      }
+      return raw + liveTimestampOffsetMs;
+    }
 
-      // Small random drift per sample
-      mockState.temp += (Math.random()-0.5)*0.25;
-      mockState.hum  += (Math.random()-0.5)*1.2;
-      mockState.pres += (Math.random()-0.5)*0.35;
-      mockState.gas  += (Math.random()-0.5)*250;
+    // --------- Data feed (HTTP polling) ---------
+    function pushSample(sample, timestampOverride){
+      const t = Number.isFinite(timestampOverride) ? timestampOverride : mapLiveTimestamp(sample.timestamp_ms);
+      const mapped = {
+        temp: Number(sample.temperature),
+        hum: Number(sample.humidity),
+        pres: Number(sample.pressure_hpa),
+        gas: Number(sample.gas_resistance),
+      };
 
-      // Slow trends
-      mockState.temp += Math.sin(Date.now()/120000) * 0.01;
-      mockState.hum  += Math.cos(Date.now()/180000) * 0.015;
-
-      // Clamp
-      mockState.temp = clamp(mockState.temp, SERIES.temp.min, SERIES.temp.max);
-      mockState.hum  = clamp(mockState.hum,  SERIES.hum.min,  SERIES.hum.max);
-      mockState.pres = clamp(mockState.pres, SERIES.pres.min, SERIES.pres.max);
-      mockState.gas  = clamp(mockState.gas,  SERIES.gas.min,  SERIES.gas.max);
-
-      const t = Date.now();
       for(const k of Object.keys(SERIES)){
-        data[k].push({ t, v: mockState[k] });
+        if(Number.isNaN(mapped[k])) continue;
+        data[k].push({ t, v: mapped[k] });
         if(data[k].length > MAX_POINTS) data[k].splice(0, data[k].length - MAX_POINTS);
       }
 
       renderAll();
+    }
+
+    async function loadHistoryCsv(){
+      try{
+        const resp = await fetch('/api/sensor/history.csv', { cache: 'no-store' });
+        if(!resp.ok) return;
+
+        const csv = await resp.text();
+        const lines = csv.split('\n');
+        if(lines.length <= 1) return;
+
+        const rows = [];
+        for(let i = 1; i < lines.length; i++){
+          const line = lines[i].trim();
+          if(!line) continue;
+          const [ts, t, h, p, g] = line.split(',');
+          const row = {
+            ts: Number(ts),
+            temp: Number(t),
+            hum: Number(h),
+            pres: Number(p),
+            gas: Number(g),
+          };
+          if(
+            Number.isFinite(row.ts) &&
+            Number.isFinite(row.temp) &&
+            Number.isFinite(row.hum) &&
+            Number.isFinite(row.pres) &&
+            Number.isFinite(row.gas)
+          ){
+            rows.push(row);
+          }
+        }
+        if(rows.length === 0) return;
+
+        const latestRawTs = rows[rows.length - 1].ts;
+        const now = Date.now();
+        const rawLooksLikeEpoch = latestRawTs > 946684800000;
+        if(!rawLooksLikeEpoch){
+          liveTimestampOffsetMs = now - latestRawTs;
+        }
+
+        for(const row of rows){
+          const mappedTs = rawLooksLikeEpoch ? row.ts : now - (latestRawTs - row.ts);
+          data.temp.push({ t: mappedTs, v: row.temp });
+          data.hum.push({ t: mappedTs, v: row.hum });
+          data.pres.push({ t: mappedTs, v: row.pres });
+          data.gas.push({ t: mappedTs, v: row.gas });
+        }
+
+        for(const k of Object.keys(SERIES)){
+          if(data[k].length > MAX_POINTS){
+            data[k].splice(0, data[k].length - MAX_POINTS);
+          }
+        }
+
+        renderAll();
+      } catch (_) {
+        // Keep running with live feed only.
+      }
+    }
+
+    async function fetchLatestSample(){
+      if(paused) return;
+
+      try{
+        const resp = await fetch('/api/sensor', { cache: 'no-store' });
+        if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        const payload = await resp.json();
+        deviceOnline = !!payload.online;
+        setDeviceUI();
+
+        const hasNumericSample =
+          Number.isFinite(Number(payload.temperature)) &&
+          Number.isFinite(Number(payload.humidity)) &&
+          Number.isFinite(Number(payload.pressure_hpa)) &&
+          Number.isFinite(Number(payload.gas_resistance));
+
+        if(payload.has_data || hasNumericSample){
+          pushSample(payload);
+        } else {
+          renderAll();
+        }
+      } catch (_) {
+        deviceOnline = false;
+        setDeviceUI();
+        renderAll();
+      }
     }
 
     // --------- Controls wiring ---------
@@ -710,11 +816,18 @@
     }
 
     function wireAll(){
-      el.toggle.addEventListener('click', () => {
-        deviceOnline = !deviceOnline;
-        if(!deviceOnline) paused = false;
-        setDeviceUI();
+      el.toggle.addEventListener('click', async () => {
+        paused = false;
+        el.pause.textContent = 'Pause';
+
+        for(const k of Object.keys(SERIES)){
+          windowIndex[k] = DEFAULT_WINDOW_INDEX;
+          el.rng[k].value = String(DEFAULT_WINDOW_INDEX);
+          el.lbl[k].textContent = `Window: ${WINDOWS[DEFAULT_WINDOW_INDEX].label}`;
+        }
+
         renderAll();
+        await fetchLatestSample();
       });
 
       el.pause.addEventListener('click', () => {
@@ -727,20 +840,16 @@
     }
 
     // --------- Boot ---------
-    setDeviceUI();
-    wireAll();
-    renderAll();
+    async function boot(){
+      setDeviceUI();
+      wireAll();
+      renderAll();
+      await loadHistoryCsv();
+      await fetchLatestSample();
+      setInterval(fetchLatestSample, POLL_MS);
+    }
 
-    // tick
-    setInterval(stepMock, SAMPLE_DT * 1000);
-
-    // --------- Integration hint ---------
-    // Example: if you receive data from a device:
-    // function pushSample({temp, hum, pres, gas, t_ms}){
-    //   const t = t_ms ?? Date.now();
-    //   data.temp.push({t, v: temp}); ...
-    //   renderAll();
-    // }
+    boot();
   </script>
 </body>
 </html>

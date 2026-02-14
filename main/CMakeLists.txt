@@ -11,4 +11,6 @@ idf_component_register(
         "."
         "../drivers/bme680"
         "../tasks"
+    EMBED_FILES
+        "../gui/page.html"
 )

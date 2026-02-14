@@ -14,7 +14,12 @@
 #ifndef LAERA_FW_SENSOR_TASK_H
 #define LAERA_FW_SENSOR_TASK_H
 
-#include "sensor_task.h"
+#include <stdbool.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
 
 
 /* Exported types ------------------------------------------------------------*/

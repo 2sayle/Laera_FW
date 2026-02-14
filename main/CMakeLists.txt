@@ -5,6 +5,9 @@ idf_component_register(
         "../drivers/bme680/drv_bme680.c"
         "../tasks/sensor_task.c"
         "../tasks/wifi_task.c"
+        "../tasks/server_task.c"
+
+    INCLUDE_DIRS
         "."
         "../drivers/bme680"
         "../tasks"

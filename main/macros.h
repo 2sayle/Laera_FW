@@ -160,6 +160,14 @@ extern "C" {
 /* Safe integer rounding divide */
 #define DIV_ROUND_UP(n, d) ( ((n) + (d) - 1U) / (d) )
 
+
+/* Available stack logger */
+#define LOG_AVAILABLE_STACK(TAG)                                    \
+    do {                                                            \
+        UBaseType_t watermark = uxTaskGetStackHighWaterMark(NULL);  \
+        ESP_LOGI(TAG, "Stack watermark: %u words", watermark);      \
+    } while (0)
+
 #ifdef __cplusplus
 }
 #endif

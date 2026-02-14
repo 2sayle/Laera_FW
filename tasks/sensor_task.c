@@ -19,6 +19,7 @@
 #include "bme68x.h"
 #include "bme68x_defs.h"
 #include "sensor_task.h"
+#include "macros.h"
 #include "esp_log.h"
 
 /* External variables --------------------------------------------------------*/
@@ -95,6 +96,8 @@ void sensor_task(void *arg) {
         } else {
             ESP_LOGE(TAG, "Failed to read sensor data: %i", rslt);
         }
+
+        LOG_AVAILABLE_STACK(TAG);
 
         /* Wait before the next reading */
         vTaskDelay(pdMS_TO_TICKS(5000)); // 5 seconds

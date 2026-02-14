@@ -10,10 +10,12 @@
 #include "bme68x_defs.h"
 #include "drv_bme680.h"
 #include "sensor_task.h"
-#include "wifi_handler.h"
+#include "wifi_task.h"
 
 #define DEBUG 1
 #define QUEUE_LENGTH 10
+
+void server_task(void *arg);
 
 /* Global variables ------------------------------------------------------------------------------------------- */
 
@@ -83,7 +85,13 @@ void app_main(void) {
         NULL,
         0); // Core 0
 
-
+    xTaskCreatePinnedToCore(server_task,
+        "server_task",
+        4096,
+        NULL,
+        5,
+        NULL,
+        0); // Core 0
 
     ESP_LOGI(TAG, "Application started");
 

@@ -12,7 +12,7 @@
   ******************************************************************************
   */
 
-#include "wifi_handler.h"
+#include "wifi_task.h"
 
 /* Private includes ----------------------------------------------------------*/
 #include <macros.h>
@@ -41,6 +41,7 @@
 
 /* Exported variables --------------------------------------------------------*/
 EventGroupHandle_t g_wifi_event_group;
+extern TaskHandle_t http_server_task;
 
 /* Private variables ---------------------------------------------------------*/
 static int sRetryNum = 0;
@@ -157,7 +158,7 @@ void wifi_task(void *arg) {
     }
 
     ESP_LOGI(TAG, "WIFI STA CONNECTED");
-    xTaskNotifyGiveIndexed(http_server_task, 0)
+    xTaskNotifyGiveIndexed(http_server_task, 0);
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));

@@ -1,6 +1,6 @@
 # Laera_FW
 
-![Cover](../images/Laera_Cover.png)
+![Cover](./images/Laera_Cover.png)
 
 **Laera** is a connected device (IoT) monitoring the air quality using an ESP32 and Bosch's BME680 sensor.
 
@@ -53,4 +53,4 @@ Adjust the serial port for your machine.
 
 ## GUI
 
-![Screeshot](../images/scr001.png)
+![Screeshot](./images/scr001.png)

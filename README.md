@@ -1,6 +1,6 @@
-![](../images/Laera_Cover.png "")
-
 # Laera_FW
+
+![Cover](../images/Laera_Cover.png)
 
 **Laera** is a connected device (IoT) monitoring the air quality using an ESP32 and Bosch's BME680 sensor.
 
@@ -50,3 +50,7 @@ Adjust the serial port for your machine.
 
 - If you add new headers, make sure their folder is listed in `INCLUDE_DIRS`.
 - Sources are listed in `main/CMakeLists.txt` (section `SRCS`).
+
+## GUI
+
+![Screeshot](../images/scr001.png)

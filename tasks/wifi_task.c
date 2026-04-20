@@ -29,14 +29,12 @@
 #include "nvs_flash.h"
 
 /* Private define ------------------------------------------------------------*/
-/* ------ Test Config (better using menuconfig) ------ */
-/* TODO */
 #ifndef CONFIG_WIFI_SSID
-#define CONFIG_WIFI_SSID "WIFI_SSID_REDACTED"
+#error "CONFIG_WIFI_SSID not defined. Configure it via idf.py menuconfig (Component config > Wi-Fi)."
 #endif
 
 #ifndef CONFIG_WIFI_PASS
-#define CONFIG_WIFI_PASS "WIFI_PASS_REDACTED"
+#error "CONFIG_WIFI_PASS not defined. Configure it via idf.py menuconfig (Component config > Wi-Fi)."
 #endif
 
 /* Exported variables --------------------------------------------------------*/

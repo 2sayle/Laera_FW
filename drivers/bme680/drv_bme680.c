@@ -148,9 +148,13 @@ esp_err_t bm68x_i2c_init_itf(struct bme68x_dev *handle, struct bme68x_i2c_ctx *c
 
     /* Read Chip ID to confirm it's the right sensor */
     uint8_t chip_id = 0;
-    BME68X_INTF_RET_TYPE status = bme68x_i2c_read(ctx->dev->device_address, &chip_id, 1, ctx);
+    BME68X_INTF_RET_TYPE status = bme68x_i2c_read(BME680_REG_CHIP_ID, &chip_id, 1, ctx);
     if (status != BME68X_INTF_RET_SUCCESS) {
-        ESP_LOGE(TAG, "CHIP_ID read failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "CHIP_ID read failed");
+        return ESP_FAIL;
+    }
+    if (chip_id != BME680_EXPECTED_CHIP_ID) {
+        ESP_LOGE(TAG, "Unexpected CHIP_ID: 0x%02X (expected 0x%02X)", chip_id, BME680_EXPECTED_CHIP_ID);
         return ESP_FAIL;
     }
 

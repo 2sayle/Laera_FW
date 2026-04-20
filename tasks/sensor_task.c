@@ -89,7 +89,9 @@ void sensor_task(void *arg) {
                       sample.temperature, sample.pressure, sample.humidity, sample.gas_resistance);
 
             /* Send the data to the queue */
-            xQueueSend(arg, &sample, portMAX_DELAY);
+            if (xQueueSend(arg, &sample, pdMS_TO_TICKS(1000)) != pdPASS) {
+                ESP_LOGE(TAG, "Queue send timeout, sample dropped");
+            }
 
         } else if (rslt == BME68X_W_NO_NEW_DATA || nData == 0) {
             ESP_LOGD(TAG, "No new data available");

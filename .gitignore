@@ -46,3 +46,5 @@ flash_project_args
 bootloader-flash_args
 partition-table-flash_args
 app-flash_args
+
+graphify-out/
